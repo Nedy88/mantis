@@ -1,0 +1,12 @@
+[project]
+authors = ["Nedy88 <nedy88@gmail.com>"]
+channels = ["conda-forge"]
+description = "Add a short description here"
+name = "mantis"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "3.12.*"
