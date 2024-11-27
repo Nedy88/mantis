@@ -29,9 +29,12 @@ def test_attention_shape() -> None:
 
 def test_attention_heads() -> None:
     """Confirm we are doing multi-head attention correctly."""
+    embed_dim = 512
+    num_heads = 8
+    head_dim = embed_dim // num_heads
     config = AttentionConfig(
-        embed_dim=512,
-        num_heads=8,
+        embed_dim=embed_dim,
+        num_heads=num_heads,
         qkv_bias=True,
         proj_bias=True,
         attn_drop=0,
@@ -39,7 +42,7 @@ def test_attention_heads() -> None:
     )
     mha = Attention(config)
     head_config = AttentionConfig(
-        embed_dim=64,
+        embed_dim=head_dim,
         num_heads=1,
         qkv_bias=True,
         proj_bias=True,
@@ -61,6 +64,12 @@ def test_attention_heads() -> None:
     value_inp = torch.randn(batch_size, M, config.embed_dim)
     out = mha(query_inp, key_inp, value_inp)
     assert out.shape == (batch_size, N, config.embed_dim)
-    out1 = sha(query_inp[:, :, :64], key_inp[:, :, :64], value_inp[:, :, :64])
-    assert out1.shape == (batch_size, N, 64)
-    assert out1.allclose(out[:, :, :64])
+
+    for i in range(num_heads):
+        outi = sha(
+            query_inp[:, :, i * head_dim : (i + 1) * head_dim],
+            key_inp[:, :, i * head_dim : (i + 1) * head_dim],
+            value_inp[:, :, i * head_dim : (i + 1) * head_dim],
+        )
+        assert outi.shape == (batch_size, N, head_dim)
+        assert outi.allclose(out[:, :, i * head_dim : (i + 1) * head_dim])
