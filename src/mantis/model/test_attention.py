@@ -6,48 +6,33 @@ from torch import nn
 from mantis.model.transformer import Attention, AttentionConfig
 
 
-def test_attention_shape() -> None:
+def test_attention_shape(attention_config: AttentionConfig) -> None:
     """Test the output shape of the Attention module."""
-    config = AttentionConfig(
-        embed_dim=512,
-        num_heads=8,
-        qkv_bias=True,
-        proj_bias=True,
-        attn_drop=0,
-        proj_drop=0,
-    )
-    model = Attention(config)
+    model = Attention(attention_config)
+    embed_dim = attention_config.embed_dim
     batch_size = 4
     N = 10  # noqa: N806
     M = 6  # noqa: N806
-    query_inp = torch.randn(batch_size, N, config.embed_dim)
-    key_inp = torch.randn(batch_size, M, config.embed_dim)
-    value_inp = torch.randn(batch_size, M, config.embed_dim)
+    query_inp = torch.randn(batch_size, N, embed_dim)
+    key_inp = torch.randn(batch_size, M, embed_dim)
+    value_inp = torch.randn(batch_size, M, embed_dim)
     out = model(query_inp, key_inp, value_inp)
-    assert out.shape == (batch_size, N, config.embed_dim)
+    assert out.shape == (batch_size, N, embed_dim)
 
 
-def test_attention_heads() -> None:
+def test_attention_heads(attention_config: AttentionConfig) -> None:
     """Confirm we are doing multi-head attention correctly."""
-    embed_dim = 512
-    num_heads = 8
+    embed_dim = attention_config.embed_dim
+    num_heads = attention_config.num_heads
     head_dim = embed_dim // num_heads
-    config = AttentionConfig(
-        embed_dim=embed_dim,
-        num_heads=num_heads,
-        qkv_bias=True,
-        proj_bias=True,
-        attn_drop=0,
-        proj_drop=0,
-    )
-    mha = Attention(config)
+    mha = Attention(attention_config)
     head_config = AttentionConfig(
         embed_dim=head_dim,
         num_heads=1,
-        qkv_bias=True,
-        proj_bias=True,
-        attn_drop=0,
-        proj_drop=0,
+        qkv_bias=attention_config.qkv_bias,
+        proj_bias=attention_config.proj_bias,
+        attn_drop=attention_config.attn_drop,
+        proj_drop=attention_config.proj_drop,
     )
     sha = Attention(head_config)
     sha.query = nn.Identity()  # type: ignore
@@ -59,11 +44,11 @@ def test_attention_heads() -> None:
     mha.value = nn.Identity()  # type: ignore
     mha.proj = nn.Identity()  # type: ignore
     batch_size, N, M = 4, 10, 6  # noqa: N806
-    query_inp = torch.randn(batch_size, N, config.embed_dim)
-    key_inp = torch.randn(batch_size, M, config.embed_dim)
-    value_inp = torch.randn(batch_size, M, config.embed_dim)
+    query_inp = torch.randn(batch_size, N, embed_dim)
+    key_inp = torch.randn(batch_size, M, embed_dim)
+    value_inp = torch.randn(batch_size, M, embed_dim)
     out = mha(query_inp, key_inp, value_inp)
-    assert out.shape == (batch_size, N, config.embed_dim)
+    assert out.shape == (batch_size, N, embed_dim)
 
     for i in range(num_heads):
         outi = sha(

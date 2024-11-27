@@ -1,5 +1,7 @@
 """The modules necessary for the transformer model."""
 
+from enum import Enum
+
 import pydantic
 import torch
 from torch import Tensor, nn
@@ -16,6 +18,164 @@ class AttentionConfig(pydantic.BaseModel):
     proj_bias: bool
     attn_drop: float
     proj_drop: float
+
+
+class Activation(str, Enum):
+    """Configurable activations."""
+
+    relu = "relu"
+    gelu = "gelu"
+
+
+def get_activation_module(activation: Activation) -> nn.Module:
+    """Get the nn.Module for the activation."""
+    match activation:
+        case Activation.relu:
+            return nn.ReLU()
+        case Activation.gelu:
+            return nn.GELU()
+        case _:
+            msg = f"Activation {activation} is not implemented."
+            raise NotImplementedError(msg)
+
+
+class LayerScale(nn.Module):
+    """Layer scale inspired by DINOv2.
+
+    See: https://github.com/facebookresearch/dinov2/blob/main/dinov2/layers/layer_scale.py
+    """
+
+    def __init__(self, dim: int, init_val: float, *, inplace: bool) -> None:
+        """Init."""
+        super().__init__()
+        self.inplace = inplace
+        self.gamma = nn.Parameter(init_val * torch.ones(dim))
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass of the LayerScale module."""
+        return x.mul_(self.gamma) if self.inplace else x * self.gamma
+
+
+class TransformerLayer(nn.Module):
+    """A single transformer decoder layer inspired by DETR."""
+
+    def __init__(
+        self,
+        attention_config: AttentionConfig,
+        mlp_ratio: float,
+        activation: Activation,
+        drop_path: float,
+        *,
+        pre_norm: bool,
+    ) -> None:
+        """Init."""
+        super().__init__()
+        self.self_attn = Attention(attention_config)
+        self.cross_attn = Attention(attention_config)
+        ffn_mlp_dim = int(attention_config.embed_dim * mlp_ratio)
+        self.mlp = nn.Sequential(
+            nn.Linear(attention_config.embed_dim, ffn_mlp_dim),
+            get_activation_module(activation),
+            nn.Linear(ffn_mlp_dim, attention_config.embed_dim),
+        )
+        self.norm1 = nn.LayerNorm(attention_config.embed_dim)
+        self.norm2 = nn.LayerNorm(attention_config.embed_dim)
+        self.norm3 = nn.LayerNorm(attention_config.embed_dim)
+        self.drop_path1 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path2 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.drop_path3 = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
+        self.pre_norm = pre_norm
+        if self.pre_norm:
+            self.ls1 = LayerScale(dim=attention_config.embed_dim, init_val=1e-5, inplace=True)
+            self.ls2 = LayerScale(dim=attention_config.embed_dim, init_val=1e-5, inplace=True)
+            self.ls3 = LayerScale(dim=attention_config.embed_dim, init_val=1e-5, inplace=True)
+
+    def forward(
+        self,
+        state: Tensor,
+        patches: Tensor,
+        patches_pos_embed: Tensor,
+        state_query: Tensor | None,
+    ) -> Tensor:
+        """Forward pass of the transformer layer."""
+        if self.pre_norm:
+            return self.forward_pre(state, patches, patches_pos_embed, state_query)
+        return self.forward_post(state, patches, patches_pos_embed, state_query)
+
+    def forward_pre(
+        self,
+        state: Tensor,
+        patches: Tensor,
+        patches_pos_embed: Tensor,
+        state_query: Tensor | None,
+    ) -> Tensor:
+        """Forward pass of the transformer layer with pre-norm."""
+        # state is (B, N, D)
+        # patches is (B, M, D)
+        # patches_pos_embed is (B, M, D)
+        # state_query is (B, N, D) if present
+        if state_query is not None:
+            state = state + state_query
+
+        # First apply cross-attention to the patches
+        cross_attn_out = self.ls1(
+            self.cross_attn(
+                query=self.norm1(state),
+                key=patches + patches_pos_embed,
+                value=patches,
+            ),
+        )
+        state = state + self.drop_path1(cross_attn_out)
+
+        # Then self-attention between the state vectors
+        norm_state = self.norm2(state)
+        self_attn_out = self.ls2(
+            self.self_attn(
+                query=norm_state,
+                key=norm_state,
+                value=norm_state,
+            ),
+        )
+        state = state + self.drop_path2(self_attn_out)
+
+        # Finally, apply the MLP
+        ffn_out = self.ls3(self.mlp(self.norm3(state)))
+        return state + self.drop_path3(ffn_out)
+
+    def forward_pos(
+        self,
+        state: Tensor,
+        patches: Tensor,
+        patches_pos_embed: Tensor,
+        state_query: Tensor | None,
+    ) -> Tensor:
+        """Forward pass of the transformer layer with post-norm."""
+        # state is (B, N, D)
+        # patches is (B, M, D)
+        # patches_pos_embed is (B, M, D)
+        # state_query is (B, N, D) if present
+        if state_query is not None:
+            state = state + state_query
+
+        # First apply cross-attention to the patches
+        cross_attn_out = self.cross_attn(
+            query=state,
+            key=patches + patches_pos_embed,
+            value=patches,
+        )
+        state = state + self.norm1(self.drop_path1(cross_attn_out))
+
+        # Then self-attention between the state vectors
+        self_attn_out = self.self_attn(
+            query=state,
+            key=state,
+            value=state,
+        )
+        state = state + self.norm2(self.drop_path2(self_attn_out))
+
+        # Finally, apply the MLP
+        ffn_out = self.mlp(state)
+        return state + self.norm3(self.drop_path3(ffn_out))
 
 
 class Attention(nn.Module):
