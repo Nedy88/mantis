@@ -27,13 +27,14 @@ torchaudio = ">=2.5.1,<3"
 black = ">=24.10.0,<25"
 ruff = ">=0.8.0,<0.9"
 pytest = ">=8.3.3,<9"
+pydantic = ">=2.10.2,<3"
 
 [tool.pixi.system-requirements]
 cuda = "12.4"
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["S101"]
+ignore = ["S101", "SLF001", "ERA001", "PGH003"]
 
 [tool.ruff]
 line-length = 100
