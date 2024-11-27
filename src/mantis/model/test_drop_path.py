@@ -43,3 +43,16 @@ def test_drop_path_none() -> None:
     drop_path = DropPath(0.)
     out = drop_path(inp)
     assert torch.abs(inp - out).max() < eps
+
+
+def test_drop_path_eval(drop_path_prob: float) -> None:
+    """Test the DropPath module in evaluation mode."""
+    batch_size = 16
+    n = 4
+    d = 512
+    eps = 1e-6
+    inp = torch.randn(batch_size, n, d)
+    drop_path = DropPath(drop_path_prob)
+    drop_path.eval()
+    out = drop_path(inp)
+    assert torch.abs(inp - out).max() < eps
