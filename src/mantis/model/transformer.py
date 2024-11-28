@@ -1,59 +1,11 @@
 """The modules necessary for the transformer model."""
 
-from enum import Enum
-
-import pydantic
 import torch
 from torch import Tensor, nn
 
-EPS = 1e-6
-
-
-class AttentionConfig(pydantic.BaseModel):
-    """Config for the MHA layer."""
-
-    embed_dim: int
-    num_heads: int
-    qkv_bias: bool
-    proj_bias: bool
-    attn_drop: float
-    proj_drop: float
-
-
-class Activation(str, Enum):
-    """Configurable activations."""
-
-    relu = "relu"
-    gelu = "gelu"
-
-
-def get_activation_module(activation: Activation) -> nn.Module:
-    """Get the nn.Module for the activation."""
-    match activation:
-        case Activation.relu:
-            return nn.ReLU()
-        case Activation.gelu:
-            return nn.GELU()
-        case _:
-            msg = f"Activation {activation} is not implemented."
-            raise NotImplementedError(msg)
-
-
-class LayerScale(nn.Module):
-    """Layer scale inspired by DINOv2.
-
-    See: https://github.com/facebookresearch/dinov2/blob/main/dinov2/layers/layer_scale.py
-    """
-
-    def __init__(self, dim: int, init_val: float, *, inplace: bool) -> None:
-        """Init."""
-        super().__init__()
-        self.inplace = inplace
-        self.gamma = nn.Parameter(init_val * torch.ones(dim))
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass of the LayerScale module."""
-        return x.mul_(self.gamma) if self.inplace else x * self.gamma
+from mantis.configs.transformer import Activation, AttentionConfig, get_activation_module
+from mantis.model.layers.drop_path import DropPath
+from mantis.model.layers.layer_scale import LayerScale
 
 
 class TransformerLayer(nn.Module):
@@ -221,23 +173,3 @@ class Attention(nn.Module):
         out = out.reshape(B, N, D)
         out = self.proj(out)
         return self.proj_drop(out)  # (B, N, D)
-
-
-class DropPath(nn.Module):
-    """Drop path (Stochastic Depth) per sample applied in the main path of the residual blocks."""
-
-    def __init__(self, drop_prob: float) -> None:
-        """Initialize the DropPath module."""
-        super().__init__()
-        self.drop_prob = drop_prob
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass of the Drop Path module."""
-        if self.drop_prob < EPS or not self.training:
-            return x
-        keep_prob = 1.0 - self.drop_prob
-        shape = (x.shape[0],) + (1,) * (x.ndim - 1)
-        random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
-        if keep_prob > 0:
-            random_tensor.div_(keep_prob)
-        return x * random_tensor
