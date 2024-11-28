@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from mantis.configs.transformer import Activation, TransformerConfig
 from mantis.model.transformer import AttentionConfig
 
 rng = np.random.default_rng(seed=42)
@@ -24,4 +25,17 @@ def attention_config() -> AttentionConfig:
         proj_bias=True,
         attn_drop=0,
         proj_drop=0,
+    )
+
+
+@pytest.fixture
+def transformer_config(attention_config: AttentionConfig) -> TransformerConfig:
+    """Get dummy config for transformer layer."""
+    return TransformerConfig(
+        depth=4,
+        attention=attention_config,
+        mlp_ratio=4.0,
+        activation=Activation.gelu,
+        drop_path_rate=0.1,
+        pre_norm=True,
     )

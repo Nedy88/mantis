@@ -1,8 +1,16 @@
 """Configs for the transformers."""
+
 from enum import Enum
 
 import pydantic
 from torch import nn
+
+
+class Activation(str, Enum):
+    """Configurable activations."""
+
+    relu = "relu"
+    gelu = "gelu"
 
 
 class AttentionConfig(pydantic.BaseModel):
@@ -16,11 +24,18 @@ class AttentionConfig(pydantic.BaseModel):
     proj_drop: float
 
 
-class Activation(str, Enum):
-    """Configurable activations."""
+class TransformerConfig(pydantic.BaseModel):
+    """Config for the transformer."""
 
-    relu = "relu"
-    gelu = "gelu"
+    depth: int
+    attention: AttentionConfig
+    mlp_ratio: float
+    activation: Activation
+    drop_path_rate: float
+    pre_norm: bool
+
+    class Config:  # noqa: D106
+        use_enum_values = True
 
 
 def get_activation_module(activation: Activation) -> nn.Module:

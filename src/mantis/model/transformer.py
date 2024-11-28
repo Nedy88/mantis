@@ -3,9 +3,50 @@
 import torch
 from torch import Tensor, nn
 
-from mantis.configs.transformer import Activation, AttentionConfig, get_activation_module
+from mantis.configs.transformer import (
+    Activation,
+    AttentionConfig,
+    TransformerConfig,
+    get_activation_module,
+)
 from mantis.model.layers.drop_path import DropPath
 from mantis.model.layers.layer_scale import LayerScale
+
+
+class Transformer(nn.Module):
+    """DETR-style transformer decoder."""
+
+    def __init__(self, config: TransformerConfig) -> None:
+        """Initialize the transformer."""
+        super().__init__()
+        # stochastic depth decay rule
+        dpr = [x.item() for x in torch.linspace(0, config.drop_path_rate, config.depth)]
+        self.layers = nn.ModuleList(
+            [
+                TransformerLayer(
+                    attention_config=config.attention,
+                    mlp_ratio=config.mlp_ratio,
+                    activation=config.activation,
+                    drop_path=dpr[i],
+                    pre_norm=config.pre_norm,
+                )
+                for i in range(config.depth)
+            ],
+        )
+        self.norm = nn.LayerNorm(config.attention.embed_dim)
+
+    def forward(
+        self,
+        state: Tensor,
+        patches: Tensor,
+        patches_pos_embed: Tensor,
+        state_query: Tensor,
+    ) -> Tensor:
+        """Forward pass of the transformer."""
+        out = state
+        for layer in self.layers:
+            out = layer(out, patches, patches_pos_embed, state_query)
+        return self.norm(out)
 
 
 class TransformerLayer(nn.Module):
