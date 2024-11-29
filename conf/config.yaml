@@ -1,0 +1,9 @@
+defaults:
+  - transformer: base
+  - dataset: caltech-256
+  - _self_
+
+hydra:
+  output_subdir: null
+  run:
+    dir: .
