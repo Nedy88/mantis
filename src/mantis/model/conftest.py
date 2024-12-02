@@ -38,4 +38,5 @@ def transformer_config(attention_config: AttentionConfig) -> TransformerConfig:
         activation=Activation.gelu,
         drop_path_rate=0.1,
         pre_norm=True,
+        n_states=10,
     )

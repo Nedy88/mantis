@@ -3,6 +3,7 @@ mlp_ratio: 4.
 activation: gelu
 drop_path_rate: 0.1
 pre_norm: True
+n_states: 10
 attention:
   embed_dim: 768
   num_heads: 12

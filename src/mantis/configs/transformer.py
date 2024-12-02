@@ -33,6 +33,7 @@ class TransformerConfig(pydantic.BaseModel):
     activation: Activation
     drop_path_rate: float
     pre_norm: bool
+    n_states: int
 
     class Config:  # noqa: D106
         use_enum_values = True
