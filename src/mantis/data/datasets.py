@@ -3,7 +3,7 @@
 from datasets import Dataset, arrow_dataset, load_dataset  # type: ignore
 
 from mantis.configs.data import DatasetConfig, DatasetName
-from mantis.data.transforms import hf_transform_caltech256, get_transforms
+from mantis.data.transforms import get_transforms, hf_transform_caltech256
 
 
 def setup_dataset(config: DatasetConfig) -> tuple[Dataset, Dataset]:
