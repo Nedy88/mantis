@@ -3,6 +3,8 @@ defaults:
   - dataset: caltech-256
   - _self_
 
+patch_size: 16
+
 hydra:
   output_subdir: null
   run:

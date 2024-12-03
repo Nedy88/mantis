@@ -26,21 +26,22 @@ class PatchEmbed(nn.Module):
         """Forward pass.
 
         Args:
-            x: A batch of patches (B, C, patch_size, patch_size).
+            x: A batch of patches (B, M, C, patch_size, patch_size).
 
         Returns:
-            A batch of embeddings (B, D).
+            A batch of embeddings (B, M, D).
 
         """
         torch._assert(
-            x.ndim == 4,  # noqa: PLR2004
-            f"Input tensor must have 4 dimensions, got {x.ndim}",
+            x.ndim == 5,  # noqa: PLR2004
+            f"Input tensor must have 5 dimensions, got {x.ndim} of shape {x.shape}",
         )
         torch._assert(
             x.size(-1) == x.size(-2),
             f"PatchEmbed expect input to be square, but got {x.shape}",
         )
-        x = self.proj(x).squeeze(-2, -1) # (B, D)
+        batch_size = x.shape[0]
+        x = self.proj(x.view(batch_size * x.shape[1], *x.shape[2:])).squeeze(-2, -1) # (B * M, D)
         if self.normalize:
             x = self.norm(x)
-        return x
+        return x.reshape(batch_size, -1, x.shape[-1]) # (B, M, D)

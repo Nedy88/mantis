@@ -12,6 +12,7 @@ class Config(pydantic.BaseModel):
 
     transformer: TransformerConfig
     dataset: DatasetConfig
+    patch_size: int
 
     class Config:  # noqa: D106
         use_enum_values = True
