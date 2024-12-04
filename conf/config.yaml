@@ -4,6 +4,15 @@ defaults:
   - _self_
 
 patch_size: 16
+float32_matmul_precision: high
+num_nodes: 1
+gpus_per_node: 8
+learning:
+  lr: 5e-4
+  weight_decay: 0.0
+  min_lr: 1e-6
+  warmup_epochs: 50
+  accum_iter: 1
 
 hydra:
   output_subdir: null
