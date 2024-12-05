@@ -33,6 +33,8 @@ jupyter = ">=1.1.1,<2"
 hydra-core = ">=1.3.2,<2"
 rich = ">=13.9.4,<14"
 tqdm = ">=4.67.1,<5"
+wandb = ">=0.18.7,<0.19"
+pydantic-settings = ">=2.6.1,<3"
 
 [tool.pixi.system-requirements]
 cuda = "12.4"

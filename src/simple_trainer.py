@@ -3,11 +3,12 @@
 
 import pydantic
 import torch.nn.functional as F  # noqa: N812
-from torch import optim
+from torch import Tensor, optim
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
+import wandb
 from mantis.configs.config import Config
 from mantis.data.datasets import get_distributed_dataloader, setup_dataset
 from mantis.model.patch_extractor import extract_grid_patches
@@ -84,7 +85,6 @@ class SimpleTrainer:
         for epoch in range(self.config.epochs):
             self.set_epoch(epoch)
             self.train_epoch()
-            break
 
     def train_epoch(self) -> None:
         """Run an epoch of training."""
@@ -97,7 +97,7 @@ class SimpleTrainer:
             patches, locs = extract_grid_patches(imgs, self.config.patch_size)
             logits = self.model(patches, locs) # (B, num_classes)
             loss = F.cross_entropy(logits, labels)
-            print(f"Loss: {loss.item()}")
+            self.log("train/loss", loss.item())
             loss /= self.config.learning.accum_iter
             loss.backward()
 
@@ -105,13 +105,21 @@ class SimpleTrainer:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
                 self.lr_scheduler.step()
-            break
 
     def update_iterations(self) -> None:
         """Increase the interation count."""
         self.training_state.global_iteration += 1
         if self.is_step:
             self.training_state.global_step += 1
+
+    def log(self, key: str, value: Tensor | float) -> None:
+        """Log a scalar value to wandb."""
+        if not self.is_global_zero:
+            return
+        if not self.is_step:
+            return
+        if self.training_state.global_step % self.config.log_every_n_steps == 0:
+            wandb.log({key: value}, step=self.training_state.global_step)
 
     @property
     def is_global_zero(self) -> bool:

@@ -29,6 +29,7 @@ class Config(pydantic.BaseModel):
     batch_size: int
     epochs: int
     num_workers: int
+    log_every_n_steps: int
 
     class Config:  # noqa: D106
         use_enum_values = True
