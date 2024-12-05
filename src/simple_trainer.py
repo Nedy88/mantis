@@ -1,9 +1,8 @@
 """SimpleTrainer for single interation with fixed grid patches."""
 
-import math
 
 import pydantic
-import torch.nn.functional as F
+import torch.nn.functional as F  # noqa: N812
 from torch import optim
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
