@@ -1,11 +1,12 @@
 """Fixtures for testing."""
 
 from pathlib import Path
+
 import numpy as np
 import pytest
-from torch.nn.modules import transformer
+from torch import log
 
-from mantis.configs.config import Config
+from mantis.configs.config import Config, Learning
 from mantis.configs.data import DatasetConfig, DatasetName
 from mantis.configs.transformer import Activation, TransformerConfig
 from mantis.model.transformer import AttentionConfig
@@ -66,4 +67,18 @@ def config(transformer_config: TransformerConfig, caltech_dataset_config: Datase
         transformer=transformer_config,
         dataset=caltech_dataset_config,
         patch_size=16,
+        float32_matmul_precision="high",
+        gpus_per_node=1,
+        num_nodes=1,
+        batch_size=4,
+        epochs=10,
+        num_workers=0,
+        log_every_n_steps=50,
+        learning=Learning(
+            lr=1e-3,
+            accum_iter=1,
+            min_lr=1e-6,
+            warmup_epochs=1,
+            weight_decay=0.1,
+        ),
     )
