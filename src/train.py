@@ -1,10 +1,10 @@
 """Training script."""
 import os
-import wandb
 
 import hydra
 import torch
 import torch.distributed as dist
+import wandb
 from omegaconf import OmegaConf
 
 from mantis.configs.config import Config
@@ -31,9 +31,11 @@ def train(config: Config) -> None:
     secrets = Secrets() # type: ignore[reportCallIssue]
     # Set up wandb logging
     wandb.login(key=secrets.wandb_api_key)
-    run = wandb.init(
+    secrets.wandb_output_dir.mkdir(parents=True, exist_ok=True)
+    wandb.init(
         project=secrets.wandb_project,
         config=config.model_dump(),
+        dir=secrets.wandb_output_dir,
     )
 
     torch.set_float32_matmul_precision(config.float32_matmul_precision)
