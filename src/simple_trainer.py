@@ -1,14 +1,13 @@
 """SimpleTrainer for single interation with fixed grid patches."""
 
-
 import pydantic
 import torch.nn.functional as F  # noqa: N812
+import wandb
 from torch import Tensor, optim
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
-import wandb
 from mantis.configs.config import Config
 from mantis.data.datasets import get_distributed_dataloader, setup_dataset
 from mantis.model.patch_extractor import extract_grid_patches
@@ -47,7 +46,8 @@ class SimpleTrainer:
         self.model = SimpleModel(config).cuda(self.local_rank)
         self.model = DistributedDataParallel(self.model, device_ids=[self.local_rank])
         self.optimizer = optim.AdamW(
-            self.model.parameters(),
+            self.model.module.get_param_groups(config.learning.weight_decay),
+            # self.model.parameters(),
             lr=config.learning.lr,
             weight_decay=config.learning.weight_decay,
         )
@@ -97,7 +97,7 @@ class SimpleTrainer:
             self.update_iterations()
             # Sample patches with the corresponding locations
             patches, locs = extract_grid_patches(imgs, self.config.patch_size)
-            logits = self.model(patches, locs) # (B, num_classes)
+            logits = self.model(patches, locs)  # (B, num_classes)
             loss = F.cross_entropy(logits, labels)
             self.log("train/loss", loss.item())
             loss /= self.config.learning.accum_iter
@@ -107,6 +107,12 @@ class SimpleTrainer:
                 self.optimizer.step()
                 self.optimizer.zero_grad()
                 self.lr_scheduler.step()
+                for lr, _ in zip(
+                    self.lr_scheduler.get_lr(),
+                    self.optimizer.param_groups,
+                    strict=True,
+                ):
+                    self.log("lr", lr)
 
     def update_iterations(self) -> None:
         """Increase the interation count."""

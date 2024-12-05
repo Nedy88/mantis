@@ -1,5 +1,7 @@
 """Simple model without RL and an agent."""
 
+from typing import Any
+
 import torch
 from torch import Tensor, nn
 
@@ -61,3 +63,28 @@ class SimpleModel(nn.Module):
         state_query = self.prompt_embed.weight.unsqueeze(0).expand(batch_size, -1, -1)
         state = self.transformer(state, patches, patch_pos_embeds, state_query)
         return self.task_head(state)
+
+    def get_param_groups(self, weight_decay: float) -> list[dict[str, Any]]:
+        """Get param groupd with different learning rates."""
+        param_groups: dict[str, dict[str, Any]] = {
+            "wd": {
+                "weight_decay": weight_decay,
+                "name": "wd",
+                "params": [],
+            },
+            "no_wd": {
+                "weight_decay": 0.0,
+                "name": "no_wd",
+                "params": [],
+            },
+        }
+
+        no_weight_decay = ["prompt_embed.weight"]
+
+        for name, param in self.named_parameters():
+            if param.ndim == 1 or name in no_weight_decay:
+                param_groups["no_wd"]["params"].append(param)
+            else:
+                param_groups["wd"]["params"].append(param)
+
+        return list(param_groups.values())
