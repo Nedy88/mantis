@@ -14,7 +14,7 @@ from mantis.data.datasets import get_distributed_dataloader, setup_dataset
 from mantis.model.patch_extractor import extract_grid_patches
 from mantis.model.simple_model import SimpleModel
 from mantis.optimization.warmup_cosine_scheduler import WarmupCosineScheduler
-from mantis.summary import print_table_with_param_counts
+from mantis.summary import print_table_with_param_counts, print_training_step_stats
 
 
 class TrainingState(pydantic.BaseModel):
@@ -73,6 +73,8 @@ class SimpleTrainer:
         eff_batch_size = config.batch_size * self.world_size * config.learning.accum_iter
         steps_per_epoch = len(train_ds) // eff_batch_size
         self.training_state.total_global_steps = steps_per_epoch * config.epochs
+        if self.is_global_zero:
+            print_training_step_stats(config, steps_per_epoch, len(train_ds))
         self.lr_scheduler = WarmupCosineScheduler(
             self.optimizer,
             warmup_steps=config.learning.warmup_epochs * steps_per_epoch,
