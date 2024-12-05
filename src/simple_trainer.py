@@ -1,6 +1,7 @@
 """SimpleTrainer for single interation with fixed grid patches."""
 
 import pydantic
+import torch
 import torch.nn.functional as F  # noqa: N812
 import wandb
 from torch import Tensor, optim
@@ -87,6 +88,7 @@ class SimpleTrainer:
         for epoch in range(self.config.epochs):
             self.set_epoch(epoch)
             self.train_epoch()
+            self.evaluate()
 
     def train_epoch(self) -> None:
         """Run an epoch of training."""
@@ -113,6 +115,22 @@ class SimpleTrainer:
                     strict=True,
                 ):
                     self.log("lr", lr)
+
+    @torch.no_grad()
+    def evaluate(self) -> None:
+        """Run evaluation after each epoch."""
+        self.model.eval()
+        losses = []
+        for batch in tqdm(self.val_loader, desc=f"Validation epoch[{self.training_state.epoch}]"):
+            imgs = batch["image"].cuda(self.local_rank)
+            labels = batch["label"].cuda(self.local_rank)
+            patches, locs = extract_grid_patches(imgs, self.config.patch_size)
+            logits = self.model(patches, locs)  # (B, num_classes)
+            loss = F.cross_entropy(logits, labels)
+            losses.append(loss)
+
+        loss = torch.stack(losses).mean()
+        self.log("val/loss", loss.item())
 
     def update_iterations(self) -> None:
         """Increase the interation count."""

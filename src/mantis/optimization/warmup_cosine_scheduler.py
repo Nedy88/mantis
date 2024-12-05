@@ -21,7 +21,6 @@ class WarmupCosineScheduler(optim.lr_scheduler._LRScheduler):
         self.min_lr = min_lr
         super().__init__(optimizer)
 
-
     def get_lr(self) -> list[float]:
         """Get the learning rate."""
         if self._step_count < self.warmup_steps:
@@ -32,7 +31,15 @@ class WarmupCosineScheduler(optim.lr_scheduler._LRScheduler):
             ]
         return [
             self.min_lr
-            + 0.5 * (base_lr - self.min_lr)
-            * (1 + math.cos(math.pi * self._step_count / self.max_steps))
+            + 0.5
+            * (base_lr - self.min_lr)
+            * (
+                1
+                + math.cos(
+                    math.pi
+                    * (self._step_count - self.warmup_steps)
+                    / (self.max_steps - self.warmup_steps)  # noqa: COM812
+                )
+            )
             for base_lr in self.base_lrs
         ]
