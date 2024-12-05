@@ -26,6 +26,9 @@ class Config(pydantic.BaseModel):
     float32_matmul_precision: str
     num_nodes: int
     gpus_per_node: int
+    batch_size: int
+    epochs: int
+    num_workers: int
 
     class Config:  # noqa: D106
         use_enum_values = True

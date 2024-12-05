@@ -55,7 +55,7 @@ class SimpleModel(nn.Module):
 
         """
         batch_size = patches.shape[0]
-        state = torch.zeros(batch_size, self.n_states, self.embed_dim)
+        state = torch.zeros(batch_size, self.n_states, self.embed_dim).to(patches.device)
         patches = self.tokenizer(patches)  # (B, M, D)
         patch_pos_embeds = self.pos_embed(patch_locs)  # (B, M, D)
         state_query = self.prompt_embed.weight.unsqueeze(0).expand(batch_size, -1, -1)

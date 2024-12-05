@@ -1,5 +1,7 @@
 """Extracting patches from images given locations."""
 
+import math
+
 import torch
 import torch.nn.functional as F  # noqa: N812
 from torch import Tensor
@@ -51,3 +53,39 @@ def extract_equal_zoom_patches(
         mode="bilinear",
         align_corners=False,
     )
+
+
+@torch.no_grad()
+def extract_grid_patches(images: Tensor, patch_size: int) -> tuple[Tensor, Tensor]:
+    """Extract ViT-like grid of equal sized patches from a batch of images.
+
+    Args:
+        images: Batch of images of shape (B, 3, H, W).
+        patch_size: The size of each output patch is (3, patch_size, patch_size).
+
+    Returns:
+        Tuple of Tensors. The first one is the extracted patches of shape (B, M, 3, P, P),
+        and the second is the locations of the patches of shape (B, M, 2).
+
+    """
+    B, C, H, W = images.shape  # noqa: N806
+    assert H % patch_size == 0, "Image height must be divisible by patch size"
+    assert W % patch_size == 0, "Image width must be divisible by patch size"
+    Hp = H // patch_size  # noqa: N806
+    Wp = W // patch_size  # noqa: N806
+    patches = images.view(B, C, Hp, patch_size, Wp, patch_size)  # (B, C, Hp, P, Wp, P)
+    patches = patches.permute(0, 2, 4, 1, 3, 5)  # (B, Hp, Wp, C, P, P)
+    patches = patches.reshape(B, -1, C, patch_size, patch_size)  # (B, M, C, P, P)
+    z = math.log2(min(Hp, Wp))  # Fixed zoom level
+    patch_width = 2 * patch_size / W  # Width in the space of relative coordinates between -1 and 1
+    patch_height = (
+        2 * patch_size / H
+    )  # Height in the space of relative coordinates between -1 and 1
+    xs = torch.linspace(-1 + patch_width / 2, 1 - patch_width / 2, Wp)
+    ys = torch.linspace(-1 + patch_height / 2, 1 - patch_height / 2, Hp)
+    grid_y, grid_x = torch.meshgrid(ys, xs, indexing="ij")  # (Hp, Wp)
+    sampling_grid = torch.stack([grid_x, grid_y], dim=-1) # (Hp, Wp, 2)
+    sampling_grid = sampling_grid.view(-1, 2).unsqueeze(0).expand(B, -1, -1)  # (B, M, 2)
+    locs = torch.ones(B, Hp * Wp, 3) * z # (B, M, 3)
+    locs[:, :, :2] = sampling_grid
+    return patches, locs

@@ -5,10 +5,8 @@ import hydra
 import torch
 import torch.distributed as dist
 from omegaconf import OmegaConf
-from rich import print
 
 from mantis.configs.config import Config
-from mantis.data.datasets import setup_dataset
 from simple_trainer import SimpleTrainer
 
 
@@ -33,10 +31,6 @@ def train(config: Config) -> None:
     local_rank, global_rank, world_size = ddp_setup("gloo")
     assert world_size == config.num_nodes * config.gpus_per_node
 
-    train_ds, val_ds = setup_dataset(config.dataset)
-    if global_rank == 0:
-        print(f"Training dataset: {len(train_ds)}")
-        print(f"Validation dataset: {len(val_ds)}")
     trainer = SimpleTrainer(config, local_rank, global_rank)
     trainer.train()
     dist.destroy_process_group()

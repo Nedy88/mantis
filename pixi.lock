@@ -3641,7 +3641,7 @@ packages:
   name: mantis
   version: 0.1.0
   path: .
-  sha256: 739b333b1942c4d0ac74c3d9783a2a62e7b5404ca271083fa3a3ceaf165f2ba3
+  sha256: fca08c31537ca59690ef91a7248fcf4412c19a8bca6d54291aee01008e1a1bc6
   requires_dist:
   - torchvision>=0.20.1,<0.21
   - matplotlib>=3.9.2,<4

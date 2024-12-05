@@ -7,6 +7,9 @@ patch_size: 16
 float32_matmul_precision: high
 num_nodes: 1
 gpus_per_node: 8
+batch_size: 4
+num_workers: 4
+epochs: 500
 learning:
   lr: 5e-4
   weight_decay: 0.0
