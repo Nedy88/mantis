@@ -2,6 +2,7 @@
 
 import pydantic
 import torch
+from torch.distributed import is_gloo_available
 import torch.nn.functional as F  # noqa: N812
 import wandb
 from torch import Tensor, optim
@@ -9,8 +10,10 @@ from torch.nn.parallel import DistributedDataParallel
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm
 
+import mantis.distributed as D  # noqa: N812
 from mantis.configs.config import Config
 from mantis.data.datasets import get_distributed_dataloader, setup_dataset
+from mantis.metrics.accuracy import Accuracy
 from mantis.model.patch_extractor import extract_grid_patches
 from mantis.model.simple_model import SimpleModel
 from mantis.optimization.warmup_cosine_scheduler import WarmupCosineScheduler
@@ -82,6 +85,12 @@ class SimpleTrainer:
             max_steps=self.training_state.total_global_steps,
             min_lr=config.learning.min_lr,
         )
+        self.acc_top1 = Accuracy(topk=1)
+        self.acc_top5 = Accuracy(topk=5)
+        wandb.define_metric("epoch")
+        wandb.define_metric("val/loss", step_metric="epoch")
+        wandb.define_metric("val/acc_top1", step_metric="epoch", summary="max")
+        wandb.define_metric("val/acc_top5", step_metric="epoch", summary="max")
 
     def train(self) -> None:
         """Train the model."""
@@ -120,6 +129,8 @@ class SimpleTrainer:
     def evaluate(self) -> None:
         """Run evaluation after each epoch."""
         self.model.eval()
+        self.acc_top1.reset()
+        self.acc_top5.reset()
         losses = []
         for batch in tqdm(self.val_loader, desc=f"Validation epoch[{self.training_state.epoch}]"):
             imgs = batch["image"].cuda(self.local_rank)
@@ -128,9 +139,19 @@ class SimpleTrainer:
             logits = self.model(patches, locs)  # (B, num_classes)
             loss = F.cross_entropy(logits, labels)
             losses.append(loss)
+            self.acc_top1(logits, labels)
+            self.acc_top5(logits, labels)
 
-        loss = torch.stack(losses).mean()
-        self.log("val/loss", loss.item())
+        loss = D.all_gather_scalar(losses)
+        if self.is_global_zero:
+            wandb.log(
+                {
+                    "epoch": self.training_state.epoch,
+                    "val/loss": loss.mean().item(),
+                    "val/acc_top1": self.acc_top1.compute().item(),
+                    "val/acc_top5": self.acc_top5.compute().item(),
+                },
+            )
 
     def update_iterations(self) -> None:
         """Increase the interation count."""
@@ -142,10 +163,17 @@ class SimpleTrainer:
         """Log a scalar value to wandb."""
         if not self.is_global_zero:
             return
+            return
         if not self.is_step:
             return
         if self.training_state.global_step % self.config.log_every_n_steps == 0:
             wandb.log({key: value}, step=self.training_state.global_step)
+
+    def log_eval(self, key: str, value: Tensor | float) -> None:
+        """Log an evaluation scalar value to wandb."""
+        if not self.is_global_zero:
+            return
+        wandb.log({key: value}, step=self.training_state.epoch)
 
     @property
     def is_global_zero(self) -> bool:
