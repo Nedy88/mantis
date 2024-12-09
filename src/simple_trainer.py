@@ -2,7 +2,6 @@
 
 import pydantic
 import torch
-from torch.distributed import is_gloo_available
 import torch.nn.functional as F  # noqa: N812
 import wandb
 from torch import Tensor, optim
@@ -87,10 +86,11 @@ class SimpleTrainer:
         )
         self.acc_top1 = Accuracy(topk=1)
         self.acc_top5 = Accuracy(topk=5)
-        wandb.define_metric("epoch")
-        wandb.define_metric("val/loss", step_metric="epoch")
-        wandb.define_metric("val/acc_top1", step_metric="epoch", summary="max")
-        wandb.define_metric("val/acc_top5", step_metric="epoch", summary="max")
+        if self.is_global_zero:
+            wandb.define_metric("epoch")
+            wandb.define_metric("val/loss", step_metric="epoch")
+            wandb.define_metric("val/acc_top1", step_metric="epoch", summary="max")
+            wandb.define_metric("val/acc_top5", step_metric="epoch", summary="max")
 
     def train(self) -> None:
         """Train the model."""
@@ -102,6 +102,7 @@ class SimpleTrainer:
     def train_epoch(self) -> None:
         """Run an epoch of training."""
         self.model.train()
+        print(f"Rank[{self.global_rank}] Start of training epoch loop.")
         for batch in tqdm(self.train_loader, desc=f"Epoch {self.training_state.epoch}"):
             imgs = batch["image"].cuda(self.local_rank)  # (B, 3, H, W)
             labels = batch["label"].cuda(self.local_rank)  # (B,)
@@ -124,7 +125,7 @@ class SimpleTrainer:
                     strict=True,
                 ):
                     self.log("lr", lr)
-            print(f"Rank[{self.global_rank}] End of training epoch.")
+        print(f"Rank[{self.global_rank}] End of training epoch.")
 
     @torch.no_grad()
     def evaluate(self) -> None:

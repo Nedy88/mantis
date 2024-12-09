@@ -29,19 +29,21 @@ def train(config: Config) -> None:
     OmegaConf.resolve(config)  # type: ignore
     config = Config(**config)  # type: ignore
     secrets = Secrets() # type: ignore[reportCallIssue]
-    # Set up wandb logging
-    wandb.login(key=secrets.wandb_api_key)
-    secrets.wandb_output_dir.mkdir(parents=True, exist_ok=True)
-    wandb.init(
-        project=secrets.wandb_project,
-        config=config.model_dump(),
-        dir=secrets.wandb_output_dir,
-    )
 
     torch.set_float32_matmul_precision(config.float32_matmul_precision)
 
     local_rank, global_rank, world_size = ddp_setup("gloo")
     assert world_size == config.num_nodes * config.gpus_per_node
+
+    # Set up wandb logging
+    if global_rank == 0:
+        wandb.login(key=secrets.wandb_api_key)
+        secrets.wandb_output_dir.mkdir(parents=True, exist_ok=True)
+        wandb.init(
+            project=secrets.wandb_project,
+            config=config.model_dump(),
+            dir=secrets.wandb_output_dir,
+        )
 
     trainer = SimpleTrainer(config, local_rank, global_rank)
     trainer.train()
