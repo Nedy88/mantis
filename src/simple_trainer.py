@@ -124,6 +124,7 @@ class SimpleTrainer:
                     strict=True,
                 ):
                     self.log("lr", lr)
+            print(f"Rank[{self.global_rank}] End of training epoch.")
 
     @torch.no_grad()
     def evaluate(self) -> None:
@@ -142,7 +143,10 @@ class SimpleTrainer:
             self.acc_top1(logits, labels)
             self.acc_top5(logits, labels)
 
+        print(f"Rank[{self.global_rank}] End of evaluation epoch loop.")
+
         loss = D.all_gather_scalar(losses)
+        print(f"Rank[{self.global_rank}]: Loss is gathered.")
         if self.is_global_zero:
             wandb.log(
                 {
@@ -152,6 +156,7 @@ class SimpleTrainer:
                     "val/acc_top5": self.acc_top5.compute().item(),
                 },
             )
+        print(f"Rank[{self.global_rank}] Logged to wandb.")
 
     def update_iterations(self) -> None:
         """Increase the interation count."""
