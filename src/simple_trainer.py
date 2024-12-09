@@ -103,7 +103,6 @@ class SimpleTrainer:
     def train_epoch(self) -> None:
         """Run an epoch of training."""
         self.model.train()
-        print(f"Rank[{self.global_rank}] Start of training epoch loop.")
         for batch in tqdm(self.train_loader, desc=f"Epoch {self.training_state.epoch}"):
             imgs = batch["image"].cuda(self.local_rank)  # (B, 3, H, W)
             labels = batch["label"].cuda(self.local_rank)  # (B,)
@@ -126,7 +125,6 @@ class SimpleTrainer:
                     strict=True,
                 ):
                     self.log("lr", lr)
-        print(f"Rank[{self.global_rank}] End of training epoch.")
 
     @torch.no_grad()
     def evaluate(self) -> None:
@@ -146,21 +144,20 @@ class SimpleTrainer:
             self.acc_top1(logits, labels)
             self.acc_top5(logits, labels)
 
-        print(f"Rank[{self.global_rank}] End of evaluation epoch loop.")
 
         loss = D.all_gather_scalar(losses)
-        print(f"Rank[{self.global_rank}]: Loss is gathered.")
+        acc_top1 = self.acc_top1.compute()
+        acc_top5 = self.acc_top5.compute()
         if self.is_global_zero:
             wandb.log(
                 {
                     "epoch": self.training_state.epoch,
                     "val/loss": loss.mean().item(),
-                    "val/acc_top1": self.acc_top1.compute().item(),
-                    "val/acc_top5": self.acc_top5.compute().item(),
+                    "val/acc_top1": acc_top1.item(),
+                    "val/acc_top5": acc_top5.item(),
                 },
             )
         dist.barrier()
-        print(f"Rank[{self.global_rank}] Logged to wandb.")
 
     def update_iterations(self) -> None:
         """Increase the interation count."""
