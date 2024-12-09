@@ -2,6 +2,7 @@
 
 import pydantic
 import torch
+import torch.distributed as dist
 import torch.nn.functional as F  # noqa: N812
 import wandb
 from torch import Tensor, optim
@@ -133,6 +134,7 @@ class SimpleTrainer:
         self.model.eval()
         self.acc_top1.reset()
         self.acc_top5.reset()
+        dist.barrier()
         losses = []
         for batch in tqdm(self.val_loader, desc=f"Validation epoch[{self.training_state.epoch}]"):
             imgs = batch["image"].cuda(self.local_rank)
@@ -157,6 +159,7 @@ class SimpleTrainer:
                     "val/acc_top5": self.acc_top5.compute().item(),
                 },
             )
+        dist.barrier()
         print(f"Rank[{self.global_rank}] Logged to wandb.")
 
     def update_iterations(self) -> None:
