@@ -11,6 +11,10 @@ cuda = [
     "torch-xla-cuda-plugin @ https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.4/torch_xla_cuda_plugin-2.5.0-py3-none-any.whl",
     "torch-xla @ https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.4/torch_xla-2.5.0-cp311-cp311-manylinux_2_28_x86_64.whl"
 ]
+tpu = [
+    "torch_xla[tpu]==2.5.0",
+    "libtpu-nightly @ https://storage.googleapis.com/libtpu-nightly-releases/wheels/libtpu-nightly/libtpu_nightly-0.1.dev20240916+nightly-py3-none-any.whl"
+]
 
 [build-system]
 build-backend = "hatchling.build"
@@ -27,7 +31,6 @@ mantis = { path = ".", editable = true }
 
 [tool.pixi.dependencies]
 pytorch = "=2.5.0"
-pytorch-cuda = "12.4.*"
 numpy = ">=2.1.3,<3"
 torchaudio = ">=2.5.0,<3"
 black = ">=24.10.0,<25"
@@ -42,15 +45,17 @@ tqdm = ">=4.67.1,<5"
 wandb = ">=0.18.7,<0.19"
 pydantic-settings = ">=2.6.1,<3"
 
-[tool.pixi.system-requirements]
-cuda = "12.4"
+# [tool.pixi.system-requirements]
+# cuda = "12.4"
 
 [tool.pixi.environments]
 cuda = { features = ["cuda"], solve-group = "default" }
+tpu = { features = ["tpu"], solve-group = "default" }
 
 [tool.pixi.feature.cuda.dependencies]
 cudnn = ">=9.3.0.75,<10"
 cuda = ">=12.4.0,<13"
+pytorch-cuda = "12.4.*"
 cudatoolkit-dev = ">=11.7.0,<12"
 
 [tool.ruff.lint]
