@@ -24,11 +24,10 @@ class Config(pydantic.BaseModel):
     learning: Learning
     patch_size: int
     float32_matmul_precision: str
-    num_nodes: int
-    gpus_per_node: int
+    world_size: int
     batch_size: int
+    effective_batch_size: int
     epochs: int
-    num_workers: int
     log_every_n_steps: int
 
     class Config:  # noqa: D106

@@ -32,8 +32,8 @@ def train(config: Config) -> None:
 
     torch.set_float32_matmul_precision(config.float32_matmul_precision)
 
-    local_rank, global_rank, world_size = ddp_setup("gloo")
-    assert world_size == config.num_nodes * config.gpus_per_node
+    local_rank, global_rank, world_size = ddp_setup("nccl")
+    assert world_size == config.world_size
 
     # Set up wandb logging
     if global_rank == 0:

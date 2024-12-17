@@ -59,7 +59,7 @@ class SimpleTrainer:
             print_table_with_param_counts(self.model.module, title="Model Parameters")
 
         # Prepare the data loaders
-        train_ds, val_ds = setup_dataset(config.dataset, device=self.local_rank)
+        train_ds, val_ds = setup_dataset(config.dataset)
         self.train_loader = get_distributed_dataloader(
             train_ds,
             self.global_rank,
@@ -193,8 +193,8 @@ class SimpleTrainer:
 
     @property
     def world_size(self) -> int:
-        """Total number of processes (nodes * gpus per node)."""
-        return self.config.num_nodes * self.config.gpus_per_node
+        """Total number of processes."""
+        return self.config.world_size
 
     def set_epoch(self, epoch: int) -> None:
         """Set the epoch."""

@@ -21,6 +21,7 @@ class DatasetConfig(pydantic.BaseModel):
     img_width: int
     img_height: int
     num_classes: int | None
+    num_workers: int
 
     class Config:  # noqa: D106
         use_enum_values = True
