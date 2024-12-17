@@ -4341,7 +4341,7 @@ packages:
 - pypi: .
   name: mantis
   version: 0.1.0
-  sha256: 01f69f994e7ecd3d3d4bf91d712db90a53a3f8ee73c0e9b1820b2cb4dea4dffa
+  sha256: 01d1ac51082794f684737cdeb48019495fdd8b24e53ed7f921a1c6683028dd83
   requires_dist:
   - torchvision>=0.19.1,<0.21
   - matplotlib>=3.9.2,<4
