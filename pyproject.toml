@@ -2,9 +2,15 @@
 authors = [{name = "Nedy88", email = "nedy88@gmail.com"}]
 description = "Add a short description here"
 name = "mantis"
-requires-python = ">= 3.12, < 3.13"
+requires-python = ">= 3.11, < 3.12"
 version = "0.1.0"
-dependencies = ["torchvision>=0.20.1,<0.21", "matplotlib>=3.9.2,<4", "plotly>=5.24.1,<6"]
+dependencies = ["torchvision>=0.19.1,<0.21", "matplotlib>=3.9.2,<4", "plotly>=5.24.1,<6"]
+
+[project.optional-dependencies]
+cuda = [
+    "torch-xla-cuda-plugin @ https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.4/torch_xla_cuda_plugin-2.5.0-py3-none-any.whl",
+    "torch-xla @ https://storage.googleapis.com/pytorch-xla-releases/wheels/cuda/12.4/torch_xla-2.5.0-cp311-cp311-manylinux_2_28_x86_64.whl"
+]
 
 [build-system]
 build-backend = "hatchling.build"
@@ -20,10 +26,10 @@ mantis = { path = ".", editable = true }
 [tool.pixi.tasks]
 
 [tool.pixi.dependencies]
-pytorch = ">=2.5.1,<3"
+pytorch = "=2.5.0"
 pytorch-cuda = "12.4.*"
 numpy = ">=2.1.3,<3"
-torchaudio = ">=2.5.1,<3"
+torchaudio = ">=2.5.0,<3"
 black = ">=24.10.0,<25"
 ruff = ">=0.8.0,<0.9"
 pytest = ">=8.3.3,<9"
@@ -39,9 +45,23 @@ pydantic-settings = ">=2.6.1,<3"
 [tool.pixi.system-requirements]
 cuda = "12.4"
 
+[tool.pixi.environments]
+cuda = { features = ["cuda"], solve-group = "default" }
+
+[tool.pixi.feature.cuda.dependencies]
+cudnn = ">=9.3.0.75,<10"
+cuda = ">=12.4.0,<13"
+cudatoolkit-dev = ">=11.7.0,<12"
+
 [tool.ruff.lint]
 select = ["ALL"]
 ignore = ["S101", "SLF001", "ERA001", "PGH003", "T201"]
 
 [tool.ruff]
 line-length = 100
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.pixi.activation]
+env = { LD_LIBRARY_PATH = "${LD_LIBRARY_PATH}:${PIXI_PROJECT_ROOT}/.pixi/envs/${PIXI_ENVIRONMENT_NAME}/lib" }
