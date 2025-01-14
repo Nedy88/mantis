@@ -1,7 +1,7 @@
 depth: 12
 mlp_ratio: 4.
 activation: gelu
-drop_path_rate: 0.1
+drop_path_rate: 0.
 pre_norm: True
 n_states: 10
 attention:

@@ -56,6 +56,14 @@ def get_transforms(config: DatasetConfig) -> tvt.Compose:
     )
 
 
+def hf_transform(transform: tvt.Compose, examples: dict[str, Any]) -> dict[str, Any]:
+    """Apply a torchvision transform to the hugging face dataset."""
+    return {
+        "image": [transform(image.convert("RGB")) for image in examples["image"]],
+        "label": [label - 1 for label in examples["label"]],
+    }
+
+
 def hf_transform_caltech256(transform: tvt.Compose) -> Callable[[dict[str, Any]], dict[str, Any]]:
     """Apply a torchvision transform to hugging face dataset."""
 

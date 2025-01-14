@@ -1,7 +1,10 @@
 """The modules necessary for the transformer model."""
 
+import numpy as np
 import torch
 from torch import Tensor, nn
+import torch_xla.core.xla_model as xm
+import torch_xla.runtime as xr
 
 from mantis.configs.transformer import (
     Activation,
@@ -20,7 +23,7 @@ class Transformer(nn.Module):
         """Initialize the transformer."""
         super().__init__()
         # stochastic depth decay rule
-        dpr = [x.item() for x in torch.linspace(0, config.drop_path_rate, config.depth)]
+        dpr = np.linspace(0, config.drop_path_rate, config.depth)
         self.layers = nn.ModuleList(
             [
                 TransformerLayer(
@@ -47,6 +50,35 @@ class Transformer(nn.Module):
         for layer in self.layers:
             out = layer(out, patches, patches_pos_embed, state_query)
         return self.norm(out)
+
+
+class DummyTransformerLayer(nn.Module):
+    def __init__(self, attention_config: AttentionConfig, mlp_ratio: float, activation: Activation):
+        super().__init__()
+        # self.cross_attn = DummyAttention(attention_config)
+
+    def forward(
+        self, state: Tensor, patches: Tensor, patches_pos_embed: Tensor, query: Tensor
+    ) -> Tensor:
+        print(f"Rank[{xr.global_ordinal()}]: {state.shape=}, {state.dtype=}, {state.device=}")
+        print(f"Rank[{xr.global_ordinal()}]: {query.shape=}, {query.dtype=}, {query.device=}")
+        p = patches.sum(dim=1, keepdim=True).expand(-1, state.shape[1], -1)
+        print(f"Rank[{xr.global_ordinal()}]: {p.shape=}, {p.dtype=}, {p.device=}")
+        pos = patches_pos_embed.sum(dim=1, keepdim=True).expand(-1, state.shape[1], -1)
+        print(f"Rank[{xr.global_ordinal()}]: {pos.shape=}, {pos.dtype=}, {pos.device=}")
+        return (
+            state
+            + query
+            + p
+            + pos
+        )
+        # state = state + query
+        # new_state = self.cross_attn(
+        #     query=state,
+        #     key=patches + patches_pos_embed,
+        #     value=patches,
+        # )
+        # return state + new_state
 
 
 class TransformerLayer(nn.Module):
@@ -88,7 +120,7 @@ class TransformerLayer(nn.Module):
         state: Tensor,
         patches: Tensor,
         patches_pos_embed: Tensor,
-        state_query: Tensor | None,
+        state_query: Tensor,
     ) -> Tensor:
         """Forward pass of the transformer layer."""
         if self.pre_norm:
@@ -100,15 +132,14 @@ class TransformerLayer(nn.Module):
         state: Tensor,
         patches: Tensor,
         patches_pos_embed: Tensor,
-        state_query: Tensor | None,
+        state_query: Tensor,
     ) -> Tensor:
         """Forward pass of the transformer layer with pre-norm."""
         # state is (B, N, D)
         # patches is (B, M, D)
         # patches_pos_embed is (B, M, D)
         # state_query is (B, N, D) if present
-        if state_query is not None:
-            state = state + state_query
+        state = state + state_query
 
         # First apply cross-attention to the patches
         cross_attn_out = self.ls1(
@@ -135,20 +166,19 @@ class TransformerLayer(nn.Module):
         ffn_out = self.ls3(self.mlp(self.norm3(state)))
         return state + self.drop_path3(ffn_out)
 
-    def forward_pos(
+    def forward_post(
         self,
         state: Tensor,
         patches: Tensor,
         patches_pos_embed: Tensor,
-        state_query: Tensor | None,
+        state_query: Tensor,
     ) -> Tensor:
         """Forward pass of the transformer layer with post-norm."""
         # state is (B, N, D)
         # patches is (B, M, D)
         # patches_pos_embed is (B, M, D)
         # state_query is (B, N, D) if present
-        if state_query is not None:
-            state = state + state_query
+        state = state + state_query
 
         # First apply cross-attention to the patches
         cross_attn_out = self.cross_attn(
@@ -169,6 +199,14 @@ class TransformerLayer(nn.Module):
         # Finally, apply the MLP
         ffn_out = self.mlp(state)
         return state + self.norm3(self.drop_path3(ffn_out))
+
+
+class DummyAttention(nn.Module):
+    def __init__(self, config: AttentionConfig) -> None:
+        super().__init__()
+
+    def forward(self, query: Tensor, key: Tensor, value: Tensor) -> Tensor:
+        return query
 
 
 class Attention(nn.Module):

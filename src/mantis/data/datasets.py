@@ -1,12 +1,14 @@
 """Datasets used for the project."""
 
+from functools import partial
+
 from datasets import Dataset, arrow_dataset, load_dataset  # type: ignore
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
 from mantis.configs.config import Config
 from mantis.configs.data import DatasetConfig, DatasetName
-from mantis.data.transforms import get_transforms, hf_transform_caltech256
+from mantis.data.transforms import get_transforms, hf_transform, hf_transform_caltech256
 
 
 def setup_dataset(config: DatasetConfig) -> tuple[Dataset, Dataset]:
@@ -15,7 +17,8 @@ def setup_dataset(config: DatasetConfig) -> tuple[Dataset, Dataset]:
         case DatasetName.caltech256:
             assert config.hf_dataset is not None
             transforms = get_transforms(config)
-            transforms = hf_transform_caltech256(transforms)
+            transforms = partial(hf_transform, transforms)
+            # transforms = hf_transform_caltech256(transforms)
             train_ds = load_dataset(
                 config.hf_dataset,
                 split="train",

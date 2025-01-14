@@ -63,12 +63,25 @@ def print_training_step_stats(config: Config, steps_per_epoch: int, train_ds_siz
     table.add_column("-", justify="left", style="bold salmon1")
 
     table.add_row("LR", f"{config.learning.lr}")
-    world_size = config.num_nodes * config.gpus_per_node
+    world_size = config.world_size
     table.add_row(
         "Eff Batch Size:",
         f"{config.batch_size * world_size * config.learning.accum_iter}",
     )
     table.add_row("Dataset Size", format_large_number(train_ds_size))
+    table.add_row("Steps per Epoch", f"{steps_per_epoch}")
+    table.add_row("Warmup Steps", f"{config.learning.warmup_epochs * steps_per_epoch}")
+    table.add_row("Total Steps", f"{steps_per_epoch * config.epochs}")
+    print(table)
+
+def print_training_step_stats_xla(config: Config, steps_per_epoch: int) -> None:
+    """Print a summary with number of steps, warmup, etc."""
+    table = Table(title="Training Stats", style="bold wheat4", title_style="bold orange1")
+    table.add_column("-", justify="right", style="sky_blue1")
+    table.add_column("-", justify="left", style="bold salmon1")
+
+    table.add_row("LR", f"{config.learning.lr}")
+    table.add_row("Eff Batch Size:", f"{config.effective_batch_size}")
     table.add_row("Steps per Epoch", f"{steps_per_epoch}")
     table.add_row("Warmup Steps", f"{config.learning.warmup_epochs * steps_per_epoch}")
     table.add_row("Total Steps", f"{steps_per_epoch * config.epochs}")

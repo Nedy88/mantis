@@ -1,6 +1,6 @@
 name: caltech256
 hf_dataset: ilee0022/Caltech-256
-root: /scratch/nedyalko_prisadnikov/hf-ds/
+root: /home/nedy/hf-ds/
 img_width: 384
 img_height: 288
 num_classes: 257

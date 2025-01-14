@@ -5,6 +5,7 @@ import torch.distributed as dist
 import torch_xla  # type: ignore[reportMissingTypeStubs]
 import torch_xla.core.xla_model as xm  # type: ignore[reportMissingTypeStubs]
 import torch_xla.distributed.xla_multiprocessing as xmp  # type: ignore[reportMissingTypeStubs]
+import torch_xla.runtime as xr  # type: ignore
 from omegaconf import OmegaConf
 
 from mantis.configs.config import Config
@@ -13,7 +14,8 @@ from simple_trainer_xla import SimpleTrainerXla
 
 
 def _mp_fn(index: int, config: Config) -> None:
-    dist.init_process_group("xla", init_method="xla://")
+    # dist.init_process_group("xla", init_method="xla://")
+    xr.initialize_cache(f"/tmp/xla_cache_{index}", readonly=False)
     trainer = SimpleTrainerXla(config)
     trainer.train()
 

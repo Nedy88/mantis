@@ -56,12 +56,17 @@ def extract_equal_zoom_patches(
 
 
 @torch.no_grad()
-def extract_grid_patches(images: Tensor, patch_size: int) -> tuple[Tensor, Tensor]:
+def extract_grid_patches(
+    images: Tensor,
+    patch_size: int,
+    device: torch.device,
+) -> tuple[Tensor, Tensor]:
     """Extract ViT-like grid of equal sized patches from a batch of images.
 
     Args:
         images: Batch of images of shape (B, 3, H, W).
         patch_size: The size of each output patch is (3, patch_size, patch_size).
+        device: Device to put on the created tensors.
 
     Returns:
         Tuple of Tensors. The first one is the extracted patches of shape (B, M, 3, P, P),
@@ -81,11 +86,11 @@ def extract_grid_patches(images: Tensor, patch_size: int) -> tuple[Tensor, Tenso
     patch_height = (
         2 * patch_size / H
     )  # Height in the space of relative coordinates between -1 and 1
-    xs = torch.linspace(-1 + patch_width / 2, 1 - patch_width / 2, Wp)
-    ys = torch.linspace(-1 + patch_height / 2, 1 - patch_height / 2, Hp)
+    xs = torch.linspace(-1 + patch_width / 2, 1 - patch_width / 2, Wp).to(device)
+    ys = torch.linspace(-1 + patch_height / 2, 1 - patch_height / 2, Hp).to(device)
     grid_y, grid_x = torch.meshgrid(ys, xs, indexing="ij")  # (Hp, Wp)
-    sampling_grid = torch.stack([grid_x, grid_y], dim=-1) # (Hp, Wp, 2)
+    sampling_grid = torch.stack([grid_x, grid_y], dim=-1)  # (Hp, Wp, 2)
     sampling_grid = sampling_grid.view(-1, 2).unsqueeze(0).expand(B, -1, -1)  # (B, M, 2)
-    locs = torch.ones(B, Hp * Wp, 3) * z # (B, M, 3)
+    locs = torch.ones(B, Hp * Wp, 3).to(device) * z  # (B, M, 3)
     locs[:, :, :2] = sampling_grid
     return patches, locs
